@@ -20,6 +20,9 @@ chmod +x ionos-cloud-watchdog
 # Linux
 curl -L https://github.com/peterpisarcik/ionos-cloud-watchdog/releases/latest/download/ionos-cloud-watchdog-linux-amd64 -o ionos-cloud-watchdog
 chmod +x ionos-cloud-watchdog
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri https://github.com/peterpisarcik/ionos-cloud-watchdog/releases/latest/download/ionos-cloud-watchdog-windows-amd64.exe -OutFile ionos-cloud-watchdog.exe
 ```
 
 ### Go install
