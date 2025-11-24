@@ -42,7 +42,13 @@ func main() {
 	} else {
 		report.StatusPage = statusResult
 		if statusResult.Status != feed.StatusOK {
-			issues = append(issues, fmt.Sprintf("Status page: %s", statusResult.Status))
+			if len(statusResult.ActiveIncidents) > 0 {
+				for _, incident := range statusResult.ActiveIncidents {
+					issues = append(issues, fmt.Sprintf("Status page: %s", incident.Title))
+				}
+			} else {
+				issues = append(issues, fmt.Sprintf("Status page: %s", statusResult.Status))
+			}
 		}
 	}
 
@@ -117,6 +123,12 @@ func main() {
 			}
 			if len(health.Services.NoIP) > 0 {
 				issues = append(issues, fmt.Sprintf("%d LoadBalancer issues", len(health.Services.NoIP)))
+			}
+			if len(health.Certs.Expired) > 0 {
+				issues = append(issues, fmt.Sprintf("%d expired certificates", len(health.Certs.Expired)))
+			}
+			if len(health.Certs.Expiring) > 0 {
+				issues = append(issues, fmt.Sprintf("%d certificates expiring soon", len(health.Certs.Expiring)))
 			}
 		}
 	}
@@ -235,6 +247,10 @@ func main() {
 			if health.Services.Total > 0 {
 				fmt.Printf("  %-14s %d/%d Ready\n", "LoadBalancers", health.Services.Ready, health.Services.Total)
 			}
+
+			if health.Certs.Total > 0 {
+				fmt.Printf("  %-14s %d/%d Valid\n", "Certificates", health.Certs.Valid, health.Certs.Total)
+			}
 		}
 
 		if len(issues) > 0 {
@@ -291,6 +307,22 @@ func main() {
 					fmt.Println("  LoadBalancers NoIP:")
 					for _, svc := range health.Services.NoIP {
 						fmt.Printf("    %s\n", svc)
+					}
+				}
+
+				if len(health.Certs.Expired) > 0 {
+					fmt.Println()
+					fmt.Println("  Certificates Expired:")
+					for _, cert := range health.Certs.Expired {
+						fmt.Printf("    %s (%s)\n", cert.Host, cert.Secret)
+					}
+				}
+
+				if len(health.Certs.Expiring) > 0 {
+					fmt.Println()
+					fmt.Println("  Certificates Expiring:")
+					for _, cert := range health.Certs.Expiring {
+						fmt.Printf("    %s (%d days)\n", cert.Host, cert.ExpiresIn)
 					}
 				}
 			}

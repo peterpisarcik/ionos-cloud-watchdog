@@ -94,6 +94,7 @@ export IONOS_TOKEN=your-token-here
 - Deployment availability
 - PVC binding status
 - LoadBalancer services
+- TLS certificate expiry (warns if < 30 days)
 
 ## Example Output
 
@@ -119,11 +120,12 @@ Kubernetes Clusters
 
 Health
 ------
-  Nodes         3/3 Ready
-  Pods          45/45 Running
-  Deployments   12/12 Available
-  PVCs          8/8 Bound
-  LoadBalancers 2/2 Ready
+  Nodes          3/3 Ready
+  Pods           45/45 Running
+  Deployments    12/12 Available
+  PVCs           8/8 Bound
+  LoadBalancers  2/2 Ready
+  Certificates   5/5 Valid
 
 Status: OK
 ```

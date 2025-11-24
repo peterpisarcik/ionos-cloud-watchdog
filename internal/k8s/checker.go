@@ -2,6 +2,8 @@ package k8s
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -28,6 +30,7 @@ type HealthResult struct {
 	PVCs        PVCResult
 	Services    ServiceResult
 	Events      EventResult
+	Certs       CertResult
 }
 
 type NodeResult struct {
@@ -66,6 +69,21 @@ type ServiceResult struct {
 
 type EventResult struct {
 	Warnings []string
+}
+
+type CertInfo struct {
+	Host      string
+	Namespace string
+	Secret    string
+	ExpiresIn int
+	Expiry    time.Time
+}
+
+type CertResult struct {
+	Total    int
+	Valid    int
+	Expiring []CertInfo
+	Expired  []CertInfo
 }
 
 func NewChecker(kubeconfigPath string) (*Checker, error) {
@@ -129,6 +147,12 @@ func (c *Checker) CheckHealth(ctx context.Context, namespace string) (*HealthRes
 		return nil, fmt.Errorf("failed to check events: %w", err)
 	}
 	result.Events = *eventResult
+
+	certResult, err := c.checkCertificates(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check certificates: %w", err)
+	}
+	result.Certs = *certResult
 
 	return result, nil
 }
@@ -306,6 +330,77 @@ func (c *Checker) checkEvents(ctx context.Context, namespace string) (*EventResu
 		if eventTime.After(cutoff) {
 			msg := fmt.Sprintf("%s/%s: %s", event.InvolvedObject.Namespace, event.InvolvedObject.Name, event.Message)
 			result.Warnings = append(result.Warnings, msg)
+		}
+	}
+
+	return result, nil
+}
+
+func (c *Checker) checkCertificates(ctx context.Context, namespace string) (*CertResult, error) {
+	result := &CertResult{}
+
+	ingresses, err := c.client.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool)
+
+	for _, ing := range ingresses.Items {
+		for _, tls := range ing.Spec.TLS {
+			if tls.SecretName == "" {
+				continue
+			}
+
+			key := fmt.Sprintf("%s/%s", ing.Namespace, tls.SecretName)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			secret, err := c.client.CoreV1().Secrets(ing.Namespace).Get(ctx, tls.SecretName, metav1.GetOptions{})
+			if err != nil {
+				continue
+			}
+
+			certData, ok := secret.Data["tls.crt"]
+			if !ok {
+				continue
+			}
+
+			block, _ := pem.Decode(certData)
+			if block == nil {
+				continue
+			}
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				continue
+			}
+
+			result.Total++
+			daysUntilExpiry := int(time.Until(cert.NotAfter).Hours() / 24)
+
+			host := ""
+			if len(tls.Hosts) > 0 {
+				host = tls.Hosts[0]
+			}
+
+			info := CertInfo{
+				Host:      host,
+				Namespace: ing.Namespace,
+				Secret:    tls.SecretName,
+				ExpiresIn: daysUntilExpiry,
+				Expiry:    cert.NotAfter,
+			}
+
+			if daysUntilExpiry < 0 {
+				result.Expired = append(result.Expired, info)
+			} else if daysUntilExpiry < 30 {
+				result.Expiring = append(result.Expiring, info)
+			} else {
+				result.Valid++
+			}
 		}
 	}
 
