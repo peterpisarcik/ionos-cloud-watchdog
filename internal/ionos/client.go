@@ -52,6 +52,7 @@ func NewClientFromEnv() (*Client, error) {
 
 	client.Username = username
 	client.Password = password
+
 	return client, nil
 }
 
@@ -145,6 +146,46 @@ func (c *Client) ListDatacenters() ([]DataCenter, error) {
 	}
 
 	return result.Items, nil
+}
+
+type Server struct {
+	ID         string `json:"id"`
+	Properties struct {
+		Name    string `json:"name"`
+		Cores   int    `json:"cores"`
+		Ram     int    `json:"ram"`
+		VMState string `json:"vmState"`
+	} `json:"properties"`
+	Metadata struct {
+		State string `json:"state"`
+	} `json:"metadata"`
+}
+
+type ServersResponse struct {
+	Items []Server `json:"items"`
+}
+
+type Volume struct {
+	ID         string `json:"id"`
+	Properties struct {
+		Name string  `json:"name"`
+		Size float64 `json:"size"`
+		Type string  `json:"type"`
+	} `json:"properties"`
+	Metadata struct {
+		State string `json:"state"`
+	} `json:"metadata"`
+}
+
+type VolumesResponse struct {
+	Items []Volume `json:"items"`
+}
+
+type DatacenterStatus struct {
+	Datacenter DataCenter
+	Servers    []Server
+	Volumes    []Volume
+	Issues     []string
 }
 
 type K8sCluster struct {
@@ -279,4 +320,99 @@ func (c *Client) setAuth(req *http.Request) {
 		auth := base64.StdEncoding.EncodeToString([]byte(c.Username + ":" + c.Password))
 		req.Header.Set("Authorization", "Basic "+auth)
 	}
+}
+
+func (c *Client) GetServers(datacenterID string) ([]Server, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/datacenters/"+datacenterID+"/servers?depth=1", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.setAuth(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var result ServersResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Items, nil
+}
+
+func (c *Client) GetVolumes(datacenterID string) ([]Volume, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/datacenters/"+datacenterID+"/volumes?depth=1", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.setAuth(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var result VolumesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Items, nil
+}
+
+func (c *Client) CheckDatacenters() ([]DatacenterStatus, error) {
+	datacenters, err := c.ListDatacenters()
+	if err != nil {
+		return nil, err
+	}
+
+	var statuses []DatacenterStatus
+
+	for _, dc := range datacenters {
+		status := DatacenterStatus{
+			Datacenter: dc,
+		}
+
+		servers, err := c.GetServers(dc.ID)
+		if err != nil {
+			status.Issues = append(status.Issues, fmt.Sprintf("Failed to get servers: %v", err))
+		} else {
+			status.Servers = servers
+			for _, srv := range servers {
+				if srv.Metadata.State == "BUSY" || srv.Metadata.State == "ERROR" {
+					status.Issues = append(status.Issues, fmt.Sprintf("Server %s state: %s", srv.Properties.Name, srv.Metadata.State))
+				}
+			}
+		}
+
+		volumes, err := c.GetVolumes(dc.ID)
+		if err != nil {
+			status.Issues = append(status.Issues, fmt.Sprintf("Failed to get volumes: %v", err))
+		} else {
+			status.Volumes = volumes
+			for _, vol := range volumes {
+				if vol.Metadata.State != "AVAILABLE" {
+					status.Issues = append(status.Issues, fmt.Sprintf("Volume %s state: %s", vol.Properties.Name, vol.Metadata.State))
+				}
+			}
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
 }

@@ -20,13 +20,14 @@ type Config struct {
 }
 
 type Report struct {
-	Status     string                   `json:"status"`
-	StatusPage *feed.StatusResult       `json:"status_page,omitempty"`
-	APICheck   *ionos.CheckResult       `json:"api_check,omitempty"`
-	AuthCheck  *ionos.CheckResult       `json:"auth_check,omitempty"`
-	Clusters   []ionos.K8sClusterStatus `json:"clusters,omitempty"`
-	Health     *k8s.HealthResult        `json:"health,omitempty"`
-	Issues     []string                 `json:"issues,omitempty"`
+	Status      string                    `json:"status"`
+	StatusPage  *feed.StatusResult        `json:"status_page,omitempty"`
+	APICheck    *ionos.CheckResult        `json:"api_check,omitempty"`
+	AuthCheck   *ionos.CheckResult        `json:"auth_check,omitempty"`
+	Datacenters []ionos.DatacenterStatus  `json:"datacenters,omitempty"`
+	Clusters    []ionos.K8sClusterStatus  `json:"clusters,omitempty"`
+	Health      *k8s.HealthResult         `json:"health,omitempty"`
+	Issues      []string                  `json:"issues,omitempty"`
 }
 
 func main() {
@@ -47,6 +48,7 @@ func main() {
 
 	var apiOK, authOK bool
 	var clusterStatuses []ionos.K8sClusterStatus
+	var datacenterStatuses []ionos.DatacenterStatus
 
 	client, err := ionos.NewClientFromEnv()
 	if err == nil {
@@ -62,6 +64,18 @@ func main() {
 		authOK = authResult.OK
 		if !authOK {
 			issues = append(issues, "IONOS authentication failed")
+		}
+
+		datacenterStatuses, err = client.CheckDatacenters()
+		if err != nil {
+			issues = append(issues, fmt.Sprintf("Datacenters: %v", err))
+		} else {
+			report.Datacenters = datacenterStatuses
+			for _, status := range datacenterStatuses {
+				for _, issue := range status.Issues {
+					issues = append(issues, fmt.Sprintf("DC %s: %s", status.Datacenter.Properties.Name, issue))
+				}
+			}
 		}
 
 		clusterStatuses, err = client.CheckK8sClusters()
@@ -126,26 +140,62 @@ func main() {
 
 		if statusResult != nil {
 			if statusResult.Status == feed.StatusOK {
-				fmt.Println("  Status Page     OK")
+				fmt.Printf("  %-14s %s\n", "Status Page", "OK")
 			} else {
-				fmt.Printf("  Status Page     %s\n", statusResult.Status)
+				fmt.Printf("  %-14s %s\n", "Status Page", statusResult.Status)
+				if len(statusResult.ActiveIncidents) > 0 {
+					for _, incident := range statusResult.ActiveIncidents {
+						fmt.Printf("    - %s\n", incident.Title)
+					}
+				}
 			}
 		}
 
 		if client != nil {
 			if apiOK {
-				fmt.Println("  API             OK")
+				fmt.Printf("  %-14s %s\n", "API", "OK")
 			} else {
-				fmt.Println("  API             FAILED")
+				fmt.Printf("  %-14s %s\n", "API", "FAILED")
 			}
 
 			if authOK {
-				fmt.Println("  Authentication  OK")
+				fmt.Printf("  %-14s %s\n", "Authentication", "OK")
 			} else {
-				fmt.Println("  Authentication  FAILED")
+				fmt.Printf("  %-14s %s\n", "Authentication", "FAILED")
 			}
 		} else {
-			fmt.Println("  API             SKIPPED")
+			fmt.Printf("  %-14s %s\n", "API", "SKIPPED")
+		}
+
+		if len(datacenterStatuses) > 0 {
+			fmt.Println()
+			fmt.Println("Datacenters")
+			fmt.Println("-----------")
+
+			for _, status := range datacenterStatuses {
+				fmt.Printf("  %s (%s)\n", status.Datacenter.Properties.Name, status.Datacenter.Properties.Location)
+				fmt.Printf("    Servers: %d\n", len(status.Servers))
+				if cfg.Verbose {
+					for _, srv := range status.Servers {
+						state := srv.Properties.VMState
+						if state == "" {
+							state = srv.Metadata.State
+						}
+						fmt.Printf("      - %s (%s)\n", srv.Properties.Name, state)
+					}
+				}
+				fmt.Printf("    Volumes: %d\n", len(status.Volumes))
+				if cfg.Verbose {
+					for _, vol := range status.Volumes {
+						fmt.Printf("      - %s (%.0fGB %s)\n", vol.Properties.Name, vol.Properties.Size, vol.Properties.Type)
+					}
+				}
+				if len(status.Issues) == 0 {
+					fmt.Println("    State: OK")
+				} else {
+					fmt.Println("    State: ISSUES")
+				}
+			}
 		}
 
 		if len(clusterStatuses) > 0 {
@@ -156,6 +206,11 @@ func main() {
 			for _, status := range clusterStatuses {
 				fmt.Printf("  %s (v%s)\n", status.Cluster.Properties.Name, status.Cluster.Properties.K8sVersion)
 				fmt.Printf("    Node Pools: %d\n", len(status.NodePools))
+				if cfg.Verbose {
+					for _, np := range status.NodePools {
+						fmt.Printf("      - %s (%d nodes, %s)\n", np.Properties.Name, np.Properties.NodeCount, np.Metadata.State)
+					}
+				}
 				if len(status.Issues) == 0 {
 					fmt.Println("    State: ACTIVE")
 				} else {
@@ -169,16 +224,16 @@ func main() {
 			fmt.Println("Health")
 			fmt.Println("------")
 
-			fmt.Printf("  Nodes         %d/%d Ready\n", health.Nodes.Ready, health.Nodes.Total)
-			fmt.Printf("  Pods          %d/%d Running\n", health.Pods.Running, health.Pods.Total)
-			fmt.Printf("  Deployments   %d/%d Available\n", health.Deployments.Available, health.Deployments.Total)
+			fmt.Printf("  %-14s %d/%d Ready\n", "Nodes", health.Nodes.Ready, health.Nodes.Total)
+			fmt.Printf("  %-14s %d/%d Running\n", "Pods", health.Pods.Running, health.Pods.Total)
+			fmt.Printf("  %-14s %d/%d Available\n", "Deployments", health.Deployments.Available, health.Deployments.Total)
 
 			if health.PVCs.Total > 0 {
-				fmt.Printf("  PVCs          %d/%d Bound\n", health.PVCs.Bound, health.PVCs.Total)
+				fmt.Printf("  %-14s %d/%d Bound\n", "PVCs", health.PVCs.Bound, health.PVCs.Total)
 			}
 
 			if health.Services.Total > 0 {
-				fmt.Printf("  LoadBalancers %d/%d Ready\n", health.Services.Ready, health.Services.Total)
+				fmt.Printf("  %-14s %d/%d Ready\n", "LoadBalancers", health.Services.Ready, health.Services.Total)
 			}
 		}
 

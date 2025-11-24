@@ -85,6 +85,7 @@ export IONOS_TOKEN=your-token-here
 - Status page for outages
 - API connectivity
 - Authentication
+- Datacenters with servers and volumes
 - Kubernetes clusters and node pools
 
 **Kubernetes**
@@ -103,6 +104,13 @@ IONOS Cloud
   API             OK
   Authentication  OK
 
+Datacenters
+-----------
+  my-datacenter (de/txl)
+    Servers: 4
+    Volumes: 10
+    State: OK
+
 Kubernetes Clusters
 -------------------
   my-cluster (v1.31.10)
@@ -119,6 +127,8 @@ Health
 
 Status: OK
 ```
+
+Use `--verbose` to see individual server and volume names.
 
 ## License
 
