@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/peterpisarcik/ionos-cloud-watchdog/internal/feed"
 	"github.com/peterpisarcik/ionos-cloud-watchdog/internal/ionos"
@@ -17,22 +18,47 @@ type Config struct {
 	Namespace  string
 	Output     string
 	Verbose    bool
+	Watch      int
 }
 
 type Report struct {
-	Status      string                    `json:"status"`
-	StatusPage  *feed.StatusResult        `json:"status_page,omitempty"`
-	APICheck    *ionos.CheckResult        `json:"api_check,omitempty"`
-	AuthCheck   *ionos.CheckResult        `json:"auth_check,omitempty"`
-	Datacenters []ionos.DatacenterStatus  `json:"datacenters,omitempty"`
-	Clusters    []ionos.K8sClusterStatus  `json:"clusters,omitempty"`
-	Health      *k8s.HealthResult         `json:"health,omitempty"`
-	Issues      []string                  `json:"issues,omitempty"`
+	Status      string                   `json:"status"`
+	StatusPage  *feed.StatusResult       `json:"status_page,omitempty"`
+	APICheck    *ionos.CheckResult       `json:"api_check,omitempty"`
+	AuthCheck   *ionos.CheckResult       `json:"auth_check,omitempty"`
+	Datacenters []ionos.DatacenterStatus `json:"datacenters,omitempty"`
+	Clusters    []ionos.K8sClusterStatus `json:"clusters,omitempty"`
+	Health      *k8s.HealthResult        `json:"health,omitempty"`
+	Issues      []string                 `json:"issues,omitempty"`
 }
 
 func main() {
 	cfg := parseFlags()
 
+	if cfg.Watch > 0 {
+		first := true
+		for {
+			if cfg.Output == "text" {
+				if !first {
+					fmt.Print("\033[H\033[2J")
+				}
+				if first {
+					fmt.Println("Starting watch mode...")
+					fmt.Println()
+				} else {
+					fmt.Printf("Last check: %s\n\n", time.Now().Format("2006-01-02 15:04:05"))
+				}
+			}
+			run(cfg, true)
+			first = false
+			time.Sleep(time.Duration(cfg.Watch) * time.Second)
+		}
+	} else {
+		run(cfg, false)
+	}
+}
+
+func run(cfg *Config, watchMode bool) {
 	report := &Report{Status: "OK"}
 	var issues []string
 
@@ -332,10 +358,12 @@ func main() {
 		fmt.Printf("Status: %s\n", report.Status)
 	}
 
-	if report.Status == "CRITICAL" {
-		os.Exit(2)
-	} else if report.Status == "WARNING" {
-		os.Exit(1)
+	if !watchMode {
+		if report.Status == "CRITICAL" {
+			os.Exit(2)
+		} else if report.Status == "WARNING" {
+			os.Exit(1)
+		}
 	}
 }
 
@@ -360,6 +388,7 @@ func parseFlags() *Config {
 	flag.StringVar(&cfg.Kubeconfig, "kubeconfig", "", "path to kubeconfig file")
 	flag.StringVar(&cfg.Namespace, "namespace", "", "kubernetes namespace to check (default: all)")
 	flag.StringVar(&cfg.Output, "output", "text", "output format: text or json")
+	flag.IntVar(&cfg.Watch, "watch", 0, "watch mode: refresh interval in seconds (0 = disabled)")
 	flag.BoolVar(&cfg.Verbose, "verbose", false, "verbose output")
 	flag.BoolVar(&cfg.Verbose, "v", false, "verbose output (shorthand)")
 	flag.Parse()

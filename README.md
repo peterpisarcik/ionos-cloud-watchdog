@@ -56,6 +56,9 @@ export IONOS_TOKEN=your-token-here
 
 # JSON output
 ./ionos-cloud-watchdog --output json
+
+# Watch mode - refresh every 30 seconds
+./ionos-cloud-watchdog --watch 30
 ```
 
 ### Options
@@ -64,6 +67,7 @@ export IONOS_TOKEN=your-token-here
 -kubeconfig string   path to kubeconfig file
 -namespace string    kubernetes namespace to check (default: all)
 -output string       output format: text or json (default "text")
+-watch int           watch mode: refresh interval in seconds (0 = disabled)
 -verbose             verbose output
 ```
 
