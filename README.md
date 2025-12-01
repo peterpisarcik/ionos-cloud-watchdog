@@ -39,36 +39,79 @@ cd ionos-cloud-watchdog
 go build ./cmd/ionos-cloud-watchdog
 ```
 
+## Configuration
+
+### Option 1: Configuration file (recommended)
+
+Initialize a config file to store your credentials:
+
+```bash
+# Using flags (avoids terminal paste issues)
+./ionos-cloud-watchdog config init --token "your-token-here"
+
+# Or with username/password
+./ionos-cloud-watchdog config init --username "user" --password "pass"
+
+# Interactive mode (prompts for input)
+./ionos-cloud-watchdog config init
+```
+
+This creates `~/.ionos-cloud-watchdog/config.yaml` with your credentials.
+
+### Option 2: Environment variables
+
+```bash
+export IONOS_TOKEN=your-token-here
+```
+
+### Option 3: Command-line flags
+
+```bash
+# Set token via environment for this run only
+IONOS_TOKEN=your-token ./ionos-cloud-watchdog
+```
+
+**Configuration priority:** config file < environment variables < command-line flags
+
 ## Usage
 
 ```bash
-# Set your IONOS Cloud token
-export IONOS_TOKEN=your-token-here
-
-# Run the watchdog
+# Run the watchdog (uses config file or env vars)
 ./ionos-cloud-watchdog
 
 # With custom kubeconfig
 ./ionos-cloud-watchdog --kubeconfig /path/to/kubeconfig
 
 # Check specific namespace
-./ionos-cloud-watchdog --namespace my-namespace
+./ionos-cloud-watchdog -n my-namespace
 
 # JSON output
-./ionos-cloud-watchdog --output json
+./ionos-cloud-watchdog -o json
+
+# Verbose output
+./ionos-cloud-watchdog -v
 
 # Watch mode - refresh every 30 seconds
-./ionos-cloud-watchdog --watch 30
+./ionos-cloud-watchdog -w 30
+```
+
+### Commands
+
+```
+config init          Initialize configuration file
+completion           Generate shell completion scripts
+help                 Help about any command
 ```
 
 ### Options
 
 ```
--kubeconfig string   path to kubeconfig file
--namespace string    kubernetes namespace to check (default: all)
--output string       output format: text or json (default "text")
--watch int           watch mode: refresh interval in seconds (0 = disabled)
--verbose             verbose output
+    --kubeconfig string   path to kubeconfig file
+-n, --namespace string    kubernetes namespace to check (default: all)
+-o, --output string       output format: text or json (default "text")
+-v, --verbose             verbose output
+-w, --watch int           watch mode: refresh interval in seconds (0 = disabled)
+-h, --help                help for ionos-cloud-watchdog
 ```
 
 ### Environment Variables
