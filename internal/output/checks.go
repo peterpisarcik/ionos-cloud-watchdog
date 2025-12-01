@@ -10,6 +10,23 @@ import (
 	"github.com/peterpisarcik/ionos-cloud-watchdog/internal/k8s"
 )
 
+var (
+	feedCheckStatus = feed.CheckStatus
+	newIONOSClient  = func() (ionosClient, error) { return ionos.NewClientFromEnv() }
+	newK8sChecker   = func(kubeconfig string) (k8sChecker, error) { return k8s.NewChecker(kubeconfig) }
+)
+
+type ionosClient interface {
+	CheckConnectivity() ionos.CheckResult
+	CheckAuthentication() ionos.CheckResult
+	CheckDatacenters() ([]ionos.DatacenterStatus, error)
+	CheckK8sClusters() ([]ionos.K8sClusterStatus, error)
+}
+
+type k8sChecker interface {
+	CheckHealth(ctx context.Context, namespace string) (*k8s.HealthResult, error)
+}
+
 func RunChecks(kubeconfig, namespace string) (*Report, error) {
 	report := &Report{Status: "OK"}
 	var issues []string
@@ -37,7 +54,7 @@ func RunChecks(kubeconfig, namespace string) (*Report, error) {
 
 func checkStatusPage(wg *sync.WaitGroup, report *Report, issues *[]string) {
 	defer wg.Done()
-	statusResult, err := feed.CheckStatus()
+	statusResult, err := feedCheckStatus()
 	if err != nil {
 		*issues = append(*issues, fmt.Sprintf("Status page: %v", err))
 	} else {
@@ -57,7 +74,7 @@ func checkStatusPage(wg *sync.WaitGroup, report *Report, issues *[]string) {
 func checkIONOS(wg *sync.WaitGroup, report *Report, issues *[]string) {
 	defer wg.Done()
 
-	client, err := ionos.NewClientFromEnv()
+	client, err := newIONOSClient()
 	if err != nil {
 		return
 	}
@@ -102,7 +119,7 @@ func checkIONOS(wg *sync.WaitGroup, report *Report, issues *[]string) {
 func checkK8s(wg *sync.WaitGroup, report *Report, issues *[]string, kubeconfig, namespace string) {
 	defer wg.Done()
 
-	checker, err := k8s.NewChecker(kubeconfig)
+	checker, err := newK8sChecker(kubeconfig)
 	if err != nil {
 		return
 	}
