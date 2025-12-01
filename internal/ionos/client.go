@@ -66,7 +66,7 @@ func (c *Client) CheckConnectivity() CheckResult {
 	if err != nil {
 		return CheckResult{OK: false, Message: fmt.Sprintf("API unreachable: %v", err)}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return CheckResult{OK: true, Message: "IONOS API is reachable"}
 }
@@ -88,7 +88,7 @@ func (c *Client) CheckAuthentication() CheckResult {
 	if err != nil {
 		return CheckResult{OK: false, Message: fmt.Sprintf("Request failed: %v", err)}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 401 {
 		return CheckResult{OK: false, Message: "Authentication failed: invalid credentials"}
@@ -134,7 +134,7 @@ func (c *Client) ListDatacenters() ([]DataCenter, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
@@ -238,7 +238,7 @@ func (c *Client) ListK8sClusters() ([]K8sCluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
@@ -264,7 +264,7 @@ func (c *Client) GetK8sNodePools(clusterID string) ([]K8sNodePool, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
@@ -334,7 +334,7 @@ func (c *Client) GetServers(datacenterID string) ([]Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
@@ -360,7 +360,7 @@ func (c *Client) GetVolumes(datacenterID string) ([]Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)

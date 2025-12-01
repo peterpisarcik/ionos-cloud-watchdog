@@ -60,16 +60,16 @@ func runChecks(cmd *cobra.Command, args []string) error {
 	fileCfg.ApplyEnvironment()
 
 	if fileCfg.IONOS.Token != "" && os.Getenv("IONOS_TOKEN") == "" {
-		os.Setenv("IONOS_TOKEN", fileCfg.IONOS.Token)
+		_ = os.Setenv("IONOS_TOKEN", fileCfg.IONOS.Token)
 	}
 	if fileCfg.IONOS.Username != "" && os.Getenv("IONOS_USERNAME") == "" {
-		os.Setenv("IONOS_USERNAME", fileCfg.IONOS.Username)
+		_ = os.Setenv("IONOS_USERNAME", fileCfg.IONOS.Username)
 	}
 	if fileCfg.IONOS.Password != "" && os.Getenv("IONOS_PASSWORD") == "" {
-		os.Setenv("IONOS_PASSWORD", fileCfg.IONOS.Password)
+		_ = os.Setenv("IONOS_PASSWORD", fileCfg.IONOS.Password)
 	}
 	if fileCfg.IONOS.APIURL != "" && os.Getenv("IONOS_API_URL") == "" {
-		os.Setenv("IONOS_API_URL", fileCfg.IONOS.APIURL)
+		_ = os.Setenv("IONOS_API_URL", fileCfg.IONOS.APIURL)
 	}
 
 	if kubeconfig == "" && fileCfg.Kubeconfig != "" {
@@ -118,7 +118,7 @@ func runCheckOnce(watchMode bool) {
 	if outputFmt == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(report)
+		_ = enc.Encode(report)
 	} else {
 		outputCfg := &output.Config{
 			Verbose: verbose,
@@ -127,9 +127,10 @@ func runCheckOnce(watchMode bool) {
 	}
 
 	if !watchMode {
-		if report.Status == "CRITICAL" {
+		switch report.Status {
+		case "CRITICAL":
 			os.Exit(2)
-		} else if report.Status == "WARNING" {
+		case "WARNING":
 			os.Exit(1)
 		}
 	}

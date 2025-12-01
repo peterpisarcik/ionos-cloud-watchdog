@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          # macOS Apple Silicon
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/ionos-cloud-watchdog-darwin-arm64 ./cmd/ionos-cloud-watchdog
+
+          # macOS Intel
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/ionos-cloud-watchdog-darwin-amd64 ./cmd/ionos-cloud-watchdog
+
+          # Linux
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/ionos-cloud-watchdog-linux-amd64 ./cmd/ionos-cloud-watchdog
+
+          # Windows
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/ionos-cloud-watchdog-windows-amd64.exe ./cmd/ionos-cloud-watchdog
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" ${{ steps.get_version.outputs.VERSION }})
+          else
+            COMMITS=$(git log --pretty=format:"- %s" ${PREV_TAG}..${{ steps.get_version.outputs.VERSION }})
+          fi
+
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+
+            ## Installation
+
+            Download the binary for your platform and run:
+
+            ```bash
+            chmod +x ionos-cloud-watchdog-*
+            ./ionos-cloud-watchdog-* config init --token "your-token"
+            ./ionos-cloud-watchdog-*
+            ```
+
+            See the [README](https://github.com/${{ github.repository }}/blob/master/README.md) for full documentation.
+          files: |
+            dist/ionos-cloud-watchdog-darwin-arm64
+            dist/ionos-cloud-watchdog-darwin-amd64
+            dist/ionos-cloud-watchdog-linux-amd64
+            dist/ionos-cloud-watchdog-windows-amd64.exe
+          draft: false
+          prerelease: false

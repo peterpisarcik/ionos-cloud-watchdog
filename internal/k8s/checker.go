@@ -273,9 +273,10 @@ func (c *Checker) checkPVCs(ctx context.Context, namespace string) (*PVCResult, 
 	for _, pvc := range pvcs.Items {
 		pvcName := fmt.Sprintf("%s/%s", pvc.Namespace, pvc.Name)
 
-		if pvc.Status.Phase == corev1.ClaimBound {
+		switch pvc.Status.Phase {
+		case corev1.ClaimBound:
 			result.Bound++
-		} else if pvc.Status.Phase == corev1.ClaimPending {
+		case corev1.ClaimPending:
 			result.Pending = append(result.Pending, pvcName)
 		}
 	}
