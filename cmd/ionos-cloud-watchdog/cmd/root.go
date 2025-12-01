@@ -17,6 +17,11 @@ var (
 	outputFmt  string
 	verbose    bool
 	watch      int
+
+	runChecksFunc = output.RunChecks
+	printTextFunc = output.PrintText
+	exitFunc      = os.Exit
+	sleepFunc     = time.Sleep
 )
 
 var rootCmd = &cobra.Command{
@@ -101,16 +106,16 @@ func runWatchMode() {
 		}
 		runCheckOnce(true)
 		first = false
-		time.Sleep(time.Duration(watch) * time.Second)
+		sleepFunc(time.Duration(watch) * time.Second)
 	}
 }
 
 func runCheckOnce(watchMode bool) {
-	report, err := output.RunChecks(kubeconfig, namespace)
+	report, err := runChecksFunc(kubeconfig, namespace)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		if !watchMode {
-			os.Exit(1)
+			exitFunc(1)
 		}
 		return
 	}
@@ -123,15 +128,15 @@ func runCheckOnce(watchMode bool) {
 		outputCfg := &output.Config{
 			Verbose: verbose,
 		}
-		output.PrintText(report, outputCfg)
+		printTextFunc(report, outputCfg)
 	}
 
 	if !watchMode {
 		switch report.Status {
 		case "CRITICAL":
-			os.Exit(2)
+			exitFunc(2)
 		case "WARNING":
-			os.Exit(1)
+			exitFunc(1)
 		}
 	}
 }

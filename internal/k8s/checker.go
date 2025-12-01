@@ -16,7 +16,7 @@ import (
 )
 
 type Checker struct {
-	client *kubernetes.Clientset
+	client kubernetes.Interface
 }
 
 type quietWarningHandler struct{}
@@ -41,17 +41,17 @@ type NodeResult struct {
 }
 
 type PodResult struct {
-	Total           int
-	Running         int
+	Total            int
+	Running          int
 	CrashLoopBackOff []string
 	ImagePullBackOff []string
-	Pending         []string
-	Failed          []string
+	Pending          []string
+	Failed           []string
 }
 
 type DeploymentResult struct {
-	Total      int
-	Available  int
+	Total       int
+	Available   int
 	Unavailable []string
 }
 
@@ -62,9 +62,9 @@ type PVCResult struct {
 }
 
 type ServiceResult struct {
-	Total     int
-	Ready     int
-	NoIP      []string
+	Total int
+	Ready int
+	NoIP  []string
 }
 
 type EventResult struct {
