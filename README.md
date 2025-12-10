@@ -188,8 +188,4 @@ Health
 Status: OK
 ```
 
-Use `--verbose` to see individual server, volume, and database cluster details.
-
-## License
-
-MIT
+Use `--verbose` to see individual server and volume names.
