@@ -134,6 +134,11 @@ help                 Help about any command
 - Authentication
 - Datacenters with servers and volumes
 - Kubernetes clusters and node pools
+- Managed Databases (DBaaS)
+  - PostgreSQL clusters
+  - MongoDB clusters
+  - MariaDB clusters
+  - In-Memory DB instances
 
 **Kubernetes**
 - Node status and conditions (MemoryPressure, DiskPressure, PIDPressure)
@@ -164,6 +169,12 @@ Kubernetes Clusters
   my-cluster (v1.31.10)
     Node Pools: 2
     State: ACTIVE
+
+Managed Databases
+-----------------
+  PostgreSQL: 2 cluster(s)
+  MongoDB: 1 cluster(s)
+  State: OK
 
 Health
 ------

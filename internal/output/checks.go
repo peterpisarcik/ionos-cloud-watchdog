@@ -21,6 +21,7 @@ type ionosClient interface {
 	CheckAuthentication() ionos.CheckResult
 	CheckDatacenters() ([]ionos.DatacenterStatus, error)
 	CheckK8sClusters() ([]ionos.K8sClusterStatus, error)
+	CheckDBaaS() ionos.DBaaSStatus
 }
 
 type k8sChecker interface {
@@ -113,6 +114,12 @@ func checkIONOS(wg *sync.WaitGroup, report *Report, issues *[]string) {
 				*issues = append(*issues, fmt.Sprintf("Cluster %s: %s", status.Cluster.Properties.Name, issue))
 			}
 		}
+	}
+
+	dbaasStatus := client.CheckDBaaS()
+	report.DBaaS = &dbaasStatus
+	for _, issue := range dbaasStatus.Issues {
+		*issues = append(*issues, fmt.Sprintf("DBaaS: %s", issue))
 	}
 }
 

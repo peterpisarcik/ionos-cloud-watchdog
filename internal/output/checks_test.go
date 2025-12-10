@@ -139,6 +139,7 @@ type fakeIONOSClient struct {
 	auth         ionos.CheckResult
 	datacenters  []ionos.DatacenterStatus
 	clusters     []ionos.K8sClusterStatus
+	dbaas        ionos.DBaaSStatus
 	err          error
 }
 
@@ -156,6 +157,10 @@ func (f *fakeIONOSClient) CheckDatacenters() ([]ionos.DatacenterStatus, error) {
 
 func (f *fakeIONOSClient) CheckK8sClusters() ([]ionos.K8sClusterStatus, error) {
 	return f.clusters, f.err
+}
+
+func (f *fakeIONOSClient) CheckDBaaS() ionos.DBaaSStatus {
+	return f.dbaas
 }
 
 type fakeK8sChecker struct {
