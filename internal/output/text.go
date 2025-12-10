@@ -15,6 +15,7 @@ type Report struct {
 	AuthCheck   *ionos.CheckResult
 	Datacenters []ionos.DatacenterStatus
 	Clusters    []ionos.K8sClusterStatus
+	DBaaS       *ionos.DBaaSStatus
 	Health      *k8s.HealthResult
 	Issues      []string
 }
@@ -28,6 +29,7 @@ func PrintText(report *Report, cfg *Config) {
 	printIONOSCloud(report)
 	printDatacenters(report, cfg)
 	printClusters(report, cfg)
+	printDBaaS(report, cfg)
 	printHealth(report)
 	printIssues(report)
 	fmt.Println()
@@ -127,6 +129,124 @@ func printClusters(report *Report, cfg *Config) {
 		} else {
 			fmt.Println("    State: ISSUES")
 		}
+	}
+}
+
+func printPostgreSQL(dbaas *ionos.DBaaSStatus, cfg *Config) {
+	if len(dbaas.PostgreSQL) > 0 {
+		fmt.Printf("  PostgreSQL: %d cluster(s)\n", len(dbaas.PostgreSQL))
+		if cfg.Verbose {
+			for _, cluster := range dbaas.PostgreSQL {
+				state := cluster.Metadata.State
+				fmt.Printf("    - %s (v%s, %s, %d instances, %s)\n",
+					cluster.Properties.DisplayName,
+					cluster.Properties.PostgresVersion,
+					cluster.Properties.Location,
+					cluster.Properties.Instances,
+					state)
+			}
+		}
+	}
+}
+
+func printMongoDB(dbaas *ionos.DBaaSStatus, cfg *Config) {
+	if len(dbaas.MongoDB) > 0 {
+		fmt.Printf("  MongoDB: %d cluster(s)\n", len(dbaas.MongoDB))
+		if cfg.Verbose {
+			for _, cluster := range dbaas.MongoDB {
+				state := cluster.Metadata.State
+				fmt.Printf("    - %s (v%s, %s, %d instances, %s)\n",
+					cluster.Properties.DisplayName,
+					cluster.Properties.MongoDBVersion,
+					cluster.Properties.Location,
+					cluster.Properties.Instances,
+					state)
+			}
+		}
+	}
+}
+
+func printMariaDB(dbaas *ionos.DBaaSStatus, cfg *Config) {
+	if len(dbaas.MariaDB) > 0 {
+		fmt.Printf("  MariaDB: %d cluster(s)\n", len(dbaas.MariaDB))
+		if cfg.Verbose {
+			for _, cluster := range dbaas.MariaDB {
+				state := cluster.Metadata.State
+				fmt.Printf("    - %s (v%s, %s, %d instances, %s)\n",
+					cluster.Properties.DisplayName,
+					cluster.Properties.MariaDBVersion,
+					cluster.Properties.Location,
+					cluster.Properties.Instances,
+					state)
+			}
+		}
+	}
+}
+
+func printInMemoryDB(dbaas *ionos.DBaaSStatus, cfg *Config) {
+	if len(dbaas.InMemoryDB) > 0 {
+		fmt.Printf("  In-Memory DB: %d instance(s)\n", len(dbaas.InMemoryDB))
+		if cfg.Verbose {
+			for _, instance := range dbaas.InMemoryDB {
+				state := instance.Metadata.State
+				fmt.Printf("    - %s (v%s, %s, %d replicas, %s)\n",
+					instance.Properties.DisplayName,
+					instance.Properties.Version,
+					instance.Properties.Location,
+					instance.Properties.Replicas,
+					state)
+			}
+		}
+	}
+}
+
+func printDBaaS(report *Report, cfg *Config) {
+	if report.DBaaS == nil {
+		return
+	}
+
+	dbaas := report.DBaaS
+	totalClusters := len(dbaas.PostgreSQL) + len(dbaas.MongoDB) + len(dbaas.MariaDB) + len(dbaas.InMemoryDB)
+
+	if totalClusters == 0 {
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Managed Databases")
+	fmt.Println("-----------------")
+
+	printPostgreSQL(dbaas, cfg)
+	printMongoDB(dbaas, cfg)
+	printMariaDB(dbaas, cfg)
+	printInMemoryDB(dbaas, cfg)
+
+	issueCount := 0
+	for _, cluster := range dbaas.PostgreSQL {
+		if cluster.Metadata.State != "AVAILABLE" && cluster.Metadata.State != "ACTIVE" {
+			issueCount++
+		}
+	}
+	for _, cluster := range dbaas.MongoDB {
+		if cluster.Metadata.State != "AVAILABLE" && cluster.Metadata.State != "ACTIVE" {
+			issueCount++
+		}
+	}
+	for _, cluster := range dbaas.MariaDB {
+		if cluster.Metadata.State != "AVAILABLE" && cluster.Metadata.State != "ACTIVE" {
+			issueCount++
+		}
+	}
+	for _, instance := range dbaas.InMemoryDB {
+		if instance.Metadata.State != "AVAILABLE" && instance.Metadata.State != "ACTIVE" {
+			issueCount++
+		}
+	}
+
+	if issueCount == 0 {
+		fmt.Println("  State: OK")
+	} else {
+		fmt.Println("  State: ISSUES")
 	}
 }
 

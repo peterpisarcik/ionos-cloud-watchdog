@@ -14,11 +14,15 @@ const (
 )
 
 type Client struct {
-	BaseURL    string
-	Token      string
-	Username   string
-	Password   string
-	HTTPClient *http.Client
+	BaseURL             string
+	PostgreSQLBaseURL   string
+	MongoDBBaseURL      string
+	MariaDBBaseURL      string
+	InMemoryDBBaseURL   string
+	Token               string
+	Username            string
+	Password            string
+	HTTPClient          *http.Client
 }
 
 type CheckResult struct {
@@ -28,7 +32,11 @@ type CheckResult struct {
 
 func NewClientFromEnv() (*Client, error) {
 	client := &Client{
-		BaseURL: DefaultAPIURL,
+		BaseURL:           DefaultAPIURL,
+		PostgreSQLBaseURL: "https://api.ionos.com/databases/postgresql",
+		MongoDBBaseURL:    "https://api.ionos.com/databases/mongodb",
+		MariaDBBaseURL:    "https://api.ionos.com/databases/mariadb",
+		InMemoryDBBaseURL: "https://api.ionos.com/databases/in-memory-db",
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
