@@ -178,7 +178,3 @@ Status: OK
 ```
 
 Use `--verbose` to see individual server and volume names.
-
-## License
-
-MIT
